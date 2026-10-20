@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VoxelCraft — بازی بلوکی</title>
+<style>
+:root{--gold:#ffc857;--panel:rgba(12,16,24,.94);--line:#ffffff28}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:Tahoma,Arial,sans-serif}
+#game{position:fixed;inset:0}canvas{display:block}
+#topbar{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;direction:ltr}
+.pill{background:#101722d9;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;backdrop-filter:blur(8px);direction:rtl}
+#stats{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+#crosshair{position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;opacity:.9}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:white;box-shadow:0 0 3px #000}
+#crosshair:before{width:2px;height:18px;left:8px;top:0}#crosshair:after{height:2px;width:18px;top:8px;left:0}
+#hotbar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:5px;direction:ltr;max-width:96vw}
+.slot{width:52px;height:54px;border:2px solid #ffffff58;background:#111b;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;font-size:10px;gap:3px}
+.slot.selected{border:3px solid var(--gold);background:#39404bdc;transform:translateY(-5px)}
+.swatch{width:23px;height:23px;border:1px solid #ffffff70;image-rendering:pixelated}
+.count{position:absolute;bottom:2px;right:5px;font-weight:bold;text-shadow:1px 1px #000}
+.key{position:absolute;top:2px;left:4px;color:#ddd;font-size:9px}
+#overlay{position:fixed;inset:0;background:linear-gradient(135deg,#101522f5,#161d2bee);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.panel{width:min(760px,100%);max-height:94vh;overflow:auto;background:var(--panel);border:1px solid #ffffff26;border-radius:22px;padding:24px;box-shadow:0 24px 80px #0009}
+h1{margin:0 0 8px;color:var(--gold);font-size:clamp(27px,5vw,44px)}h2{margin:0 0 12px;font-size:22px}
+.sub{color:#c6d0dd;line-height:1.8;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button,select{font:inherit;border:1px solid #ffffff25;border-radius:12px;padding:12px 16px;background:#222d3b;color:white;cursor:pointer}
+button.primary{background:linear-gradient(135deg,#f8bd42,#e87827);color:#171717;font-weight:bold;border:0}
+button:hover{filter:brightness(1.13)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-top:12px}
+.tile{border:1px solid var(--line);background:#1b2431;border-radius:12px;padding:12px;text-align:center}
+#inventory,#crafting,#help{position:fixed;inset:0;z-index:8;background:#0009;display:none;align-items:center;justify-content:center;padding:12px}
+#inventory .panel,#crafting .panel,#help .panel{width:min(700px,100%)}
+#inventoryGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:14px 0}
+.invslot{min-height:54px;border:1px solid #ffffff30;border-radius:8px;background:#202b39;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;text-align:center;gap:4px}
+.recipe{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:#1a2330}
+.recipe small{color:#c7d0da}
+#toast{position:fixed;top:76px;left:50%;transform:translateX(-50%);padding:10px 14px;border-radius:10px;background:#101722e8;border:1px solid #ffffff35;display:none;z-index:12;font-size:13px;max-width:90vw;text-align:center}
+#mobile{position:fixed;bottom:88px;left:12px;display:none;gap:8px;z-index:4;direction:ltr}
+#mobile button{width:48px;height:48px;padding:0;background:#101722bb;font-size:20px;touch-action:none}
+#lookHint{position:fixed;bottom:84px;right:12px;font-size:11px;color:#fff;background:#1119;padding:8px;border-radius:8px;max-width:200px}
+@media(max-width:700px){.slot{width:39px;height:46px}.swatch{width:18px;height:18px}#mobile{display:flex}#lookHint{bottom:145px}#topbar{top:6px;left:6px;right:6px}.pill{padding:6px 8px;font-size:10px}.panel{padding:17px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="topbar"><div class="pill" id="worldLabel">VOXELCRAFT • جهان بلوکی</div><div id="stats"><div class="pill" id="modeLabel">حالت: بقا</div><div class="pill" id="timeLabel">روز</div><div class="pill" id="healthLabel">❤ 20</div><div class="pill" id="foodLabel">🍗 20</div></div></div>
+<div id="crosshair"></div><div id="hotbar"></div><div id="toast"></div>
+<div id="lookHint">کلیک برای قفل‌کردن ماوس • WASD حرکت • Space پرش<br>کلیک چپ: کندن | کلیک راست: گذاشتن بلوک</div>
+<div id="mobile"><button id="mUp">↑</button><button id="mLeft">←</button><button id="mDown">↓</button><button id="mRight">→</button><button id="mJump">⤒</button></div>
+<div id="overlay"><div class="panel">
+<h1>VOXELCRAFT</h1><h2>دنیای بلوکی خودت رو بساز!</h2>
+<p class="sub">یک بازی سندباکس سه‌بعدی الهام‌گرفته از بازی‌های بلوکی؛ معدن‌کاری، ساخت‌وساز، ساخت ابزار، حالت خلاقانه و بقا، موجودات، شب و روز و ذخیرهٔ جهان.</p>
+<div class="grid"><div class="tile">⛏️<br><b>معدن‌کاری</b><br><small>کندن و گذاشتن بلوک</small></div><div class="tile">🧰<br><b>کرفتینگ</b><br><small>ابزار و وسایل</small></div><div class="tile">🌞<br><b>شب و روز</b><br><small>چرخهٔ پویا</small></div><div class="tile">🐑<br><b>موجودات</b><br><small>حیوانات و دشمن‌ها</small></div></div>
+<div class="row"><label class="sub">حالت بازی: <select id="modeSelect"><option value="survival">Survival — بقا</option><option value="creative">Creative — خلاقانه</option></select></label><label class="sub">اندازهٔ جهان: <select id="sizeSelect"><option value="small">کوچک و سریع</option><option value="medium" selected>متوسط</option><option value="large">بزرگ</option></select></label></div>
+<div class="row"><button class="primary" id="startBtn">شروع بازی</button><button id="loadBtn">بارگذاری ذخیره</button><button id="howBtn">راهنما و کنترل‌ها</button></div>
+<p class="sub" style="font-size:11px;margin-top:14px">برای اجرای موتور سه‌بعدی، اتصال اینترنت جهت بارگیری کتابخانهٔ گرافیکی لازم است. جهان ذخیره‌شده در همین مرورگر نگه‌داری می‌شود. این نسخه یک بازی مستقل و الهام‌گرفته است، نه نسخهٔ رسمی Minecraft و نه شامل تمام محتوای اصلی آن.</p>
+</div></div>
+<div id="inventory"><div class="panel"><h2>🎒 کوله‌پشتی</h2><p class="sub">روی یک بلوک بزن تا آن را به نوار ابزار منتقل کنی.</p><div id="inventoryGrid"></div><div class="row"><button id="closeInv" class="primary">برگشت به بازی</button><button id="openCraft">میز ساخت (Crafting)</button><button id="saveBtn">ذخیرهٔ جهان</button></div></div></div>
+<div id="crafting"><div class="panel"><h2>🧰 ساخت وسایل</h2><p class="sub">مواد لازم را در کوله‌پشتی داشته باش. در حالت خلاقانه همهٔ دستورها رایگان‌اند.</p><div id="recipes"></div><div class="row"><button id="closeCraft" class="primary">بستن</button></div></div></div>
+<div id="help"><div class="panel"><h2>راهنما و کنترل‌ها</h2><div class="sub"><b>کامپیوتر:</b> کلیک روی بازی برای فعال‌شدن ماوس، WASD برای حرکت، Space پرش، Shift دویدن، کلیک چپ کندن/حمله، کلیک راست گذاشتن بلوک، کلیدهای 1 تا 9 انتخاب نوار ابزار، E کوله‌پشتی، C ساخت وسایل، N تغییر روز/شب، Esc آزادکردن ماوس.<br><br><b>موبایل:</b> دکمه‌های جهت برای حرکت، ⤒ برای پرش؛ برای نگاه‌کردن انگشت را روی صفحه بکش؛ دکمه‌های نوار ابزار را لمس کن. لمس طولانی/کلیک راست برای گذاشتن بلوک.<br><br><b>بقا:</b> جان و گرسنگی داری؛ غذا و مواد جمع کن. <b>خلاقانه:</b> پرواز و بلوک نامحدود. دنیایت را از منوی کوله‌پشتی ذخیره کن.</div><div class="row"><button id="closeHelp" class="primary">متوجه شدم</button></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const blockDefs={
+grass:{name:'چمن',color:0x68a943,hard:1},dirt:{name:'خاک',color:0x805333,hard:1},stone:{name:'سنگ',color:0x85898e,hard:3},sand:{name:'شن',color:0xd8c27b,hard:1},
+wood:{name:'چوب',color:0x8b5a2b,hard:2},leaves:{name:'برگ',color:0x347d37,hard:1},planks:{name:'تخته',color:0xb98248,hard:1},
+cobble:{name:'سنگ‌فرش',color:0x696d72,hard:2},coal:{name:'سنگ زغال',color:0x383a3d,hard:3},iron:{name:'سنگ آهن',color:0xb18b73,hard:4},
+brick:{name:'آجر',color:0xa94f43,hard:2},glass:{name:'شیشه',color:0x9bd9e8,hard:1},water:{name:'آب',color:0x347fd1,hard:99},torch:{name:'مشعل',color:0xffbd3c,hard:0},
+bed:{name:'تخت',color:0xc64a4a,hard:1},crafting:{name:'میز ساخت',color:0x98673b,hard:2},furnace:{name:'کوره',color:0x55575b,hard:3},gold:{name:'سنگ طلا',color:0xd4ad36,hard:4},diamond:{name:'سنگ الماس',color:0x46e1db,hard:5}
+};
+const recipes=[
+{out:'planks',n:4,needs:{wood:1},label:'تخته از چوب'},
+{out:'stick',n:4,needs:{planks:2},label:'چوب‌دستی'},
+{out:'crafting',n:1,needs:{planks:4},label:'میز ساخت'},
+{out:'woodpick',n:1,needs:{planks:3,stick:2},label:'کلنگ چوبی'},
+{out:'stonepick',n:1,needs:{cobble:3,stick:2},label:'کلنگ سنگی'},
+{out:'woodaxe',n:1,needs:{planks:3,stick:2},label:'تبر چوبی'},
+{out:'sword',n:1,needs:{planks:2,stick:1},label:'شمشیر چوبی'},
+{out:'torch',n:4,needs:{coal:1,stick:1},label:'مشعل ×۴'},
+{out:'brick',n:4,needs:{stone:2,dirt:1},label:'بلوک آجر ×۴'},
+{out:'glass',n:2,needs:{sand:2},label:'شیشه ×۲'},
+{out:'furnace',n:1,needs:{cobble:8},label:'کوره'},
+{out:'bed',n:1,needs:{planks:3,leaves:2},label:'تخت ساده'}
+];
+let scene,camera,renderer,clock,world={},objects=[],mobs=[],inventory={},hotbar=['grass','dirt','stone','wood','planks','cobble','torch','glass','crafting'],selected=0,mode='survival',running=false,day=0.22,health=20,food=20,velY=0,grounded=false,yaw=0,pitch=0,keys={},lastHunger=0,worldRadius=13,saveName='voxelcraft-save-v1',player={x:0,y:5,z:0},raycaster=new THREE.Raycaster(),target=null,meshMap=new Map(),mouseDown=0;
+const matCache={};
+function material(type){if(!matCache[type]){let d=blockDefs[type]||{color:0xffffff};matCache[type]=new THREE.MeshLambertMaterial({color:d.color,transparent:type==='glass'||type==='water',opacity:type==='glass'?.42:type==='water'?.72:1});}return matCache[type]}
+function key(x,y,z){return `${x},${y},${z}`}
+function seeded(x,z){let v=Math.sin(x*127.1+z*311.7)*43758.5453;return v-Math.floor(v)}
+function terrain(x,z){return Math.floor(2+Math.sin(x*.22)*1.3+Math.cos(z*.19)*1.2+Math.sin((x+z)*.13)*.8)}
+function addBlock(x,y,z,type,save=true){let k=key(x,y,z);if(world[k])removeBlock(x,y,z,false);world[k]=type;const geo=new THREE.BoxGeometry(1,1,1);const m=new THREE.Mesh(geo,material(type));m.position.set(x,y,z);m.userData={x,y,z,type};scene.add(m);objects.push(m);meshMap.set(k,m);if(save){}return m}
+function removeBlock(x,y,z,drop=true){let k=key(x,y,z),type=world[k];if(!type)return;let m=meshMap.get(k);if(m){scene.remove(m);m.geometry.dispose();meshMap.delete(k);objects=objects.filter(o=>o!==m)}delete world[k];if(drop&&mode==='survival')give(type,1)}
+function genTree(x,z){let y=terrain(x,z)+1;for(let i=0;i<4;i++)addBlock(x,y+i,z,'wood');for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=2;dy<=5;dy++){if(Math.abs(dx)+Math.abs(dz)+(dy===5?1:0)<5 && seeded(x+dx*3+dy,z+dz)>0.12 && !world[key(x+dx,y+dy,z+dz)])addBlock(x+dx,y+dy,z+dz,'leaves')}}
+function generateWorld(size){world={};meshMap.clear();objects.forEach(o=>{scene.remove(o);o.geometry.dispose()});objects=[];mobs.forEach(m=>scene.remove(m.mesh));mobs=[];worldRadius=size==='small'?9:size==='large'?21:14;
+for(let x=-worldRadius;x<=worldRadius;x++)for(let z=-worldRadius;z<=worldRadius;z++){let h=terrain(x,z);for(let y=-2;y<=h;y++){let t=y===h?(h<1?'sand':'grass'):y>h-3?'dirt':'stone';if(y<-1&&seeded(x+y,z)>.986)t='coal';else if(y<-1&&seeded(x+4,z+y)>.993)t='iron';else if(y<-1&&seeded(x-3,z+y)>.997)t='gold';else if(y<-1&&seeded(x+2,z-4)>.998)t='diamond';addBlock(x,y,z,t,false)}
+if(seeded(x,z)>.972&&Math.abs(x)+Math.abs(z)>4)genTree(x,z);
+if(seeded(x+18,z-8)>.993&&Math.abs(x)+Math.abs(z)>5){addBlock(x,h+1,z,'water')}
+}
+player={x:0,y:terrain(0,0)+3,z:0};camera.position.set(player.x,player.y,player.z);yaw=0;pitch=0;day=.22;spawnMobs();toast('جهان جدید ساخته شد!');}
+function makeMob(type,x,y,z){let color={cow:0x77513a,sheep:0xd9d9d9,pig:0xf09cae,chicken:0xf4f0df,zombie:0x4d9661,skeleton:0xd6d6c7}[type]||0x999999;let g=new THREE.Group();let body=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.35),new THREE.MeshLambertMaterial({color}));body.position.y=.55;g.add(body);let head=new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.42),new THREE.MeshLambertMaterial({color:type==='zombie'?0x5eb66c:color}));head.position.y=1.15;g.add(head);if(['cow','sheep','pig'].includes(type)){let legmat=new THREE.MeshLambertMaterial({color:0x4a3428});for(let sx of [-.18,.18])for(let sz of [-.12,.12]){let leg=new THREE.Mesh(new THREE.BoxGeometry(.13,.38,.13),legmat);leg.position.set(sx,.19,sz);g.add(leg)}}g.position.set(x,y,z);scene.add(g);mobs.push({type,mesh:g,hp:type==='zombie'||type==='skeleton'?5:2,dx:Math.random()*2-1,dz:Math.random()*2-1,step:0});}
+function spawnMobs(){for(let i=0;i<12;i++){let x=Math.floor(Math.random()*worldRadius*1.5-worldRadius*.75),z=Math.floor(Math.random()*worldRadius*1.5-worldRadius*.75);if(Math.abs(x)+Math.abs(z)<6)continue;let h=terrain(x,z);makeMob(['cow','sheep','pig','chicken'][Math.floor(Math.random()*4)],x,h+1,z)}}
+function spawnHostiles(){if(mobs.filter(m=>m.type==='zombie'||m.type==='skeleton').length<5){let a=Math.random()*Math.PI*2,r=7+Math.random()*6,x=Math.round(player.x+Math.cos(a)*r),z=Math.round(player.z+Math.sin(a)*r);makeMob(Math.random()<.55?'zombie':'skeleton',x,terrain(x,z)+1,z)}}
+function init3D(){scene=new THREE.Scene();scene.background=new THREE.Color(0x87ceeb);scene.fog=new THREE.Fog(0x87ceeb,25,75);camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,150);renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));$('game').appendChild(renderer.domElement);clock=new THREE.Clock();scene.add(new THREE.HemisphereLight(0xdcecff,0x53432b,1.4));let sun=new THREE.DirectionalLight(0xffffff,1.1);sun.position.set(30,60,20);sun.name='sun';scene.add(sun);window.sun=sun;renderer.domElement.addEventListener('click',()=>{if(running&&document.pointerLockElement!==renderer.domElement&&!isMobile())renderer.domElement.requestPointerLock?.()});renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());renderer.domElement.addEventListener('mousedown',onMouse);renderer.domElement.addEventListener('touchstart',touchLook,{passive:false});renderer.domElement.addEventListener('touchmove',touchLook,{passive:false});document.addEventListener('mousemove',onMove);document.addEventListener('keydown',onKey);document.addEventListener('keyup',e=>keys[e.code]=false);window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});}
+function isMobile(){return matchMedia('(max-width:700px)').matches||'ontouchstart'in window}
+let lastTouch=null;
+function touchLook(e){if(!running||e.target.closest('button'))return;if(e.type==='touchstart'){lastTouch={x:e.touches[0].clientX,y:e.touches[0].clientY};}else if(lastTouch){let t=e.touches[0];yaw-=(t.clientX-lastTouch.x)*.006;pitch-=(t.clientY-lastTouch.y)*.006;pitch=Math.max(-1.45,Math.min(1.45,pitch));lastTouch={x:t.clientX,y:t.clientY};e.preventDefault()}}
+function onMove(e){if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.0022;pitch-=e.movementY*.0022;pitch=Math.max(-1.48,Math.min(1.48,pitch))}}
+function onKey(e){if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys[e.code]=true;if(!running)return;if(/^Digit[1-9]$/.test(e.code)){selected=Number(e.code.slice(5))-1;renderHotbar()}if(e.code==='KeyE')togglePanel('inventory');if(e.code==='KeyC')togglePanel('crafting');if(e.code==='KeyN'){day=(day+.5)%1;toast(day<.5?'روز شد':'شب شد')}if(e.code==='Escape'){}}
+function onMouse(e){if(!running||$('inventory').style.display==='flex'||$('crafting').style.display==='flex')return;if(e.button===0)mineOrAttack();if(e.button===2)placeSelected()}
+function forward(){return new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw))}
+function mineOrAttack(){raycaster.setFromCamera(new THREE.Vector2(0,0),camera);let hits=raycaster.intersectObjects(objects,false);if(hits.length&&hits[0].distance<6){let o=hits[0].object,u=o.userData;if(mode==='survival'&&blockDefs[u.type]?.hard>1&&!['woodpick','stonepick'].some(t=>inventory[t])){if(blockDefs[u.type]?.hard>2){toast('برای این بلوک کلنگ لازم داری!');return}}removeBlock(u.x,u.y,u.z,true);return}let mh=null,md=3;for(let m of mobs){let d=m.mesh.position.distanceTo(camera.position);if(d<md){md=d;mh=m}}if(mh){mh.hp-=1;if(mh.hp<=0){scene.remove(mh.mesh);mobs=mobs.filter(m=>m!==mh);if(mode==='survival')give(({cow:'food',pig:'food',chicken:'food',sheep:'wool',zombie:'rotten',skeleton:'bone'})[mh.type]||'food',1);toast('موجود شکست خورد!')}}}
+function placeSelected(){if(!running)return;raycaster.setFromCamera(new THREE.Vector2(0,0),camera);let hits=raycaster.intersectObjects(objects,false);if(!hits.length||hits[0].distance>6)return;let h=hits[0],n=h.face.normal.clone().transformDirection(h.object.matrixWorld),u=h.object.userData,x=Math.round(u.x+n.x),y=Math.round(u.y+n.y),z=Math.round(u.z+n.z);let type=hotbar[selected];if(!blockDefs[type])return;if(mode==='survival'&&!consume(type,1)){toast('از این بلوک نداری!');return}if(y>0&&Math.abs(x-player.x)<1&&Math.abs(z-player.z)<1&&Math.abs(y-player.y)<2){if(mode==='survival')give(type,1);return}addBlock(x,y,z,type)}
+function give(type,n=1){inventory[type]=(inventory[type]||0)+n;renderHotbar()}
+function consume(type,n=1){if(mode==='creative')return true;if((inventory[type]||0)<n)return false;inventory[type]-=n;if(inventory[type]<=0)delete inventory[type];renderHotbar();return true}
+function renderHotbar(){let el=$('hotbar');el.innerHTML='';hotbar.forEach((t,i)=>{let d=document.createElement('div');d.className='slot'+(i===selected?' selected':'');let def=blockDefs[t];d.innerHTML=`<span class="key">${i+1}</span><div class="swatch" style="background:${def?'#'+def.color.toString(16).padStart(6,'0'):'#aaa'}"></div><span>${def?def.name:t}</span>${mode==='creative'?'':`<span class="count">${inventory[t]||0}</span>`}`;d.onclick=()=>{selected=i;renderHotbar()};d.oncontextmenu=e=>{e.preventDefault();placeSelected()};el.appendChild(d)})}
+function renderInventory(){let el=$('inventoryGrid');el.innerHTML='';let types=Object.keys(blockDefs).concat(['stick','woodpick','stonepick','woodaxe','sword','food','wool','bone','rotten']);types.forEach(t=>{let n=inventory[t]||0;let d=document.createElement('div');d.className='invslot';let color=blockDefs[t]?.color;d.innerHTML=`${color!==undefined?`<span class="swatch" style="background:#${color.toString(16).padStart(6,'0')}"></span>`:'🧰'}<b>${blockDefs[t]?.name||t}</b><small>${mode==='creative'?'∞':n}</small>`;d.onclick=()=>{if(n>0){let i=hotbar.indexOf(t);if(i<0){hotbar[selected]=t}else selected=i;renderHotbar();toast('به نوار ابزار اضافه شد')}};el.appendChild(d)})}
+function togglePanel(which){let el=$(which);let open=el.style.display==='flex';['inventory','crafting','help'].forEach(id=>$(id).style.display='none');if(!open){el.style.display='flex';if(which==='inventory')renderInventory();if(which==='crafting')renderRecipes();document.exitPointerLock?.()}}
+function renderRecipes(){let el=$('recipes');el.innerHTML='';recipes.forEach(r=>{let enough=mode==='creative'||Object.entries(r.needs).every(([t,n])=>(inventory[t]||0)>=n);let d=document.createElement('div');d.className='recipe';d.innerHTML=`<div><b>${r.label}</b><br><small>نیاز: ${Object.entries(r.needs).map(([t,n])=>(blockDefs[t]?.name||t)+' ×'+n).join('، ')}</small></div><button ${enough?'':'disabled'}>${enough?'ساخت':'مواد کافی نیست'}</button>`;d.querySelector('button').onclick=()=>{if(!enough)return;if(mode==='survival')Object.entries(r.needs).forEach(([t,n])=>consume(t,n));give(r.out,r.n);if(!hotbar.includes(r.out))hotbar[selected]=r.out;renderHotbar();renderRecipes();toast('ساخته شد: '+r.label)};el.appendChild(d)})}
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',2200)}
+function updateStats(){$('modeLabel').textContent='حالت: '+(mode==='creative'?'خلاقانه':'بقا');$('healthLabel').textContent='❤ '+health;$('foodLabel').textContent='🍗 '+food;$('timeLabel').textContent=day<.25||day>.75?'شب':'روز'}
+function saveWorld(){let data={world,inventory,hotbar,selected,mode,day,health,food,player,radius:worldRadius};try{localStorage.setItem(saveName,JSON.stringify(data));toast('جهان ذخیره شد ✓')}catch(e){toast('ذخیره انجام نشد؛ فضای مرورگر کافی نیست')}}
+function loadWorld(){let raw=localStorage.getItem(saveName);if(!raw){toast('ذخیره‌ای پیدا نشد');return false}try{let d=JSON.parse(raw);world={};meshMap.clear();objects.forEach(o=>scene.remove(o));objects=[];worldRadius=d.radius||14;for(let k in d.world){let [x,y,z]=k.split(',').map(Number);addBlock(x,y,z,d.world[k],false)}inventory=d.inventory||{};hotbar=d.hotbar||hotbar;selected=d.selected||0;mode=d.mode||'survival';day=d.day??.22;health=d.health||20;food=d.food||20;player=d.player||{x:0,y:5,z:0};camera.position.set(player.x,player.y,player.z);spawnMobs();renderHotbar();updateStats();toast('ذخیره بارگذاری شد ✓');return true}catch(e){toast('فایل ذخیره خراب است');return false}}
+function update(dt){if(!running)return;let f=forward(),right=new THREE.Vector3(-f.z,0,f.x),speed=keys.ShiftLeft?7:4.8;if(mode==='creative')speed=keys.ShiftLeft?11:7;let move=new THREE.Vector3();if(keys.KeyW||keys.ArrowUp)move.add(f);if(keys.KeyS||keys.ArrowDown)move.sub(f);if(keys.KeyD||keys.ArrowRight)move.add(right);if(keys.KeyA||keys.ArrowLeft)move.sub(right);if(move.lengthSq())move.normalize().multiplyScalar(speed*dt);player.x+=move.x;player.z+=move.z;
+if(mode==='creative'){if(keys.Space)player.y+=speed*dt;if(keys.ControlLeft||keys.KeyQ)player.y-=speed*dt;velY=0}else{velY-=18*dt;player.y+=velY*dt;let floor=terrain(Math.round(player.x),Math.round(player.z))+1.6;if(player.y<floor){player.y=floor;velY=0;grounded=true}else grounded=false;if(keys.Space&&grounded){velY=7.5;grounded=false}}
+camera.position.set(player.x,player.y,player.z);camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+day=(day+dt*.006)%1;let sun=window.sun,angle=day*Math.PI*2;sun.position.set(Math.cos(angle)*45,Math.sin(angle)*60,20);sun.intensity=Math.max(.12,Math.sin(angle)*.9+.15);let night=day<.22||day>.78;let sky=night?0x111b38:day<.3?0xe9a16a:0x87ceeb;scene.background.lerp(new THREE.Color(sky),.03);scene.fog.color.copy(scene.background);$('timeLabel').textContent=night?'🌙 شب':'☀️ روز';
+if(night&&Math.random()<dt*.025)spawnHostiles();
+for(let m of mobs){m.step-=dt;if(m.step<=0){m.dx=Math.random()*2-1;m.dz=Math.random()*2-1;m.step=1+Math.random()*3}let hostile=m.type==='zombie'||m.type==='skeleton';let dx=player.x-m.mesh.position.x,dz=player.z-m.mesh.position.z,dist=Math.hypot(dx,dz);if(hostile&&night&&dist<10){m.dx=dx/(dist||1);m.dz=dz/(dist||1)}m.mesh.position.x+=m.dx*dt*(hostile?1.25:.5);m.mesh.position.z+=m.dz*dt*(hostile?1.25:.5);m.mesh.position.y=terrain(Math.round(m.mesh.position.x),Math.round(m.mesh.position.z))+1;if(hostile&&night&&dist<1.2&&mode==='survival'&&Math.random()<dt*.8){health=Math.max(0,health-1);if(health===0){toast('باختی! برای ادامه دوباره شروع کن');running=false;$('overlay').style.display='flex'}}}
+if(mode==='survival'&&Date.now()-lastHunger>18000){food=Math.max(0,food-1);lastHunger=Date.now();if(food===0&&Math.random()<.3)health=Math.max(1,health-1);else if(food>15&&health<20)health++;}updateStats();renderer.render(scene,camera)}
+function loop(){requestAnimationFrame(loop);let dt=Math.min(clock?clock.getDelta():.016,.05);if(scene)update(dt)}
+function start(){mode=$('modeSelect').value;inventory={};if(mode==='creative'){Object.keys(blockDefs).forEach(t=>inventory[t]=999)}else{inventory={grass:12,dirt:16,wood:3,planks:4,food:4};}health=20;food=20;selected=0;renderHotbar();init3D();generateWorld($('sizeSelect').value);$('overlay').style.display='none';running=true;updateStats();if(!isMobile())renderer.domElement.requestPointerLock?.();if(!window.loopStarted){window.loopStarted=true;loop()}}
+$('startBtn').onclick=start;
+$('loadBtn').onclick=()=>{if(!scene)init3D();$('overlay').style.display='none';running=true;if(!loadWorld()){generateWorld($('sizeSelect').value);inventory={grass:12,dirt:16,wood:3,planks:4};}if(!window.loopStarted){window.loopStarted=true;loop()}};
+$('howBtn').onclick=()=>{$('help').style.display='flex'};
+$('closeHelp').onclick=()=>$('help').style.display='none';
+$('closeInv').onclick=()=>{$('inventory').style.display='none';if(!isMobile())renderer.domElement.requestPointerLock?.()};
+$('openCraft').onclick=()=>{togglePanel('crafting')};$('closeCraft').onclick=()=>$('crafting').style.display='none';
+$('saveBtn').onclick=saveWorld;
+$('mUp').onpointerdown=()=>keys.KeyW=true;$('mUp').onpointerup=()=>keys.KeyW=false;
+$('mDown').onpointerdown=()=>keys.KeyS=true;$('mDown').onpointerup=()=>keys.KeyS=false;
+$('mLeft').onpointerdown=()=>keys.KeyA=true;$('mLeft').onpointerup=()=>keys.KeyA=false;
+$('mRight').onpointerdown=()=>keys.KeyD=true;$('mRight').onpointerup=()=>keys.KeyD=false;
+$('mJump').onpointerdown=()=>{if(mode==='creative')keys.Space=true;else if(grounded){velY=7.5;grounded=false}};$('mJump').onpointerup=()=>keys.Space=false;
+document.addEventListener('contextmenu',e=>{if(running){e.preventDefault();placeSelected()}});
+document.addEventListener('keydown',e=>{if(e.code==='KeyE'&&running){e.preventDefault();togglePanel('inventory')}if(e.code==='KeyC'&&running){e.preventDefault();togglePanel('crafting')}});
+})();
+</script>
+</body></html>
